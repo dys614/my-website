@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>惜食盲盒 · 10分钟步行圈店铺地图</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css">
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <span class="logo">🥡</span>
+    <div>
+      <h1>惜食盲盒</h1>
+      <p>10 分钟步行圈 · 剩余盲盒实时看</p>
+    </div>
+  </div>
+  <div class="actions" id="topActions">
+    <div class="role-switch">
+      <span id="roleTag" class="role-tag">🧑 顾客模式</span>
+      <button class="role-toggle" id="roleToggle" title="一键切换顾客 / 商家视图" onclick="toggleRoleUI()" aria-label="切换模式">⇄</button>
+    </div>
+    <button id="btnLocate" class="btn" data-role="both">📍 重新定位</button>
+    <button id="btnPick" class="btn" data-role="customer">⌖ 手动选点</button>
+    <button id="btnCity" class="btn" data-role="customer">🏙 城市</button>
+    <button id="btnPrefs" class="btn" data-role="customer">⚙️ 偏好设置</button>
+    <button id="btnFeed" class="btn" data-role="customer">📷 晒单</button>
+    <button id="btnCarbon" class="btn" data-role="customer">🌱 碳账户</button>
+    <button id="btnReport" class="btn" data-role="merchant">📋 上报</button>
+    <button id="btnTier" class="btn" data-role="merchant">🎚 档位</button>
+    <button id="btnTpl" class="btn" data-role="merchant">📦 模板</button>
+    <button id="btnPrice" class="btn" data-role="merchant">💰 定价</button>
+    <button id="btnVerify" class="btn" data-role="merchant">📷 核销</button>
+    <button id="btnOff" class="btn" data-role="merchant">🛑 下架</button>
+    <button id="btnDash" class="btn" data-role="merchant">📊 看板</button>
+    <button id="btnRpt" class="btn" data-role="merchant">📈 报表</button>
+    <button id="btnOrders" class="btn" data-role="customer">🧾 订单<span class="order-badge" id="orderBadge" style="display:none">0</span></button>
+    <button id="btnMe" class="btn" data-role="both">🧑 我</button>
+    <button id="btnAdmin" class="btn" data-role="admin" style="background:#022c22;color:#10b981;border-color:#065f46">🛠 管理后台</button>
+    <button id="btnRefresh" class="btn primary" data-role="both">🔄 刷新库存</button>
+  </div>
+</header>
+
+<div id="banner" class="hidden"></div>
+
+<main>
+  <aside id="sidebar">
+    <div id="chips" class="chips"></div>
+    <div id="catChips" class="chips"></div>
+    <div class="filterbar">
+      <select id="selDist" title="按距离筛选">
+        <option value="0">距离不限</option>
+        <option value="300">≤ 300m</option>
+        <option value="500">≤ 500m</option>
+        <option value="800">≤ 800m</option>
+      </select>
+      <select id="selTime" title="按自提时间筛选">
+        <option value="all">自提时间不限</option>
+        <option value="early">18:00 前自提</option>
+        <option value="mid">18:00–20:00 自提</option>
+        <option value="late">20:00 后自提</option>
+      </select>
+    </div>
+    <div id="meta" class="meta">正在获取位置…</div>
+    <div id="storeList" class="store-list"></div>
+    <div class="footnote">演示数据：店铺与库存为模拟生成，仅用于展示交互效果。</div>
+  </aside>
+  <div id="map">
+    <div id="loading">
+      <div class="spinner"></div>
+      <p>正在获取你的位置…</p>
+    </div>
+    <div class="legend">
+      <div class="legend-title">库存状态</div>
+      <div class="legend-item"><span class="dot d-ok"></span>充足（≥6 盒）</div>
+      <div class="legend-item"><span class="dot d-low"></span>少量（2–5 盒）</div>
+      <div class="legend-item"><span class="dot d-critical"></span>售罄边缘（1 盒）</div>
+      <div class="legend-item"><span class="dot d-soldout"></span>售罄（0 盒）</div>
+      <div class="legend-item"><span class="ring"></span>10 分钟步行圈 ≈ 800m</div>
+    </div>
+  </div>
+</main>
+
+<div id="authMask" class="hidden">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <svg viewBox="0 0 64 64" width="76" height="76" aria-label="惜食袋">
+        <defs>
+          <linearGradient id="bagGrad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#10b981"/><stop offset="1" stop-color="#047857"/>
+          </linearGradient>
+        </defs>
+        <path d="M20 20 v-3 a12 12 0 0 1 24 0 v3" fill="none" stroke="#047857" stroke-width="4" stroke-linecap="round"/>
+        <path d="M12 20 h40 l-3.2 33 a5 5 0 0 1-5 4.5 H20.2 a5 5 0 0 1-5-4.5 Z" fill="url(#bagGrad)"/>
+        <path d="M32 50.5 c-8.5 0-12.8-6.6-11.2-13.8 7.2-1.6 13.2 3.1 13.2 10.7 0 1.6-1 3.1-2 3.1z" fill="#d1fae5"/>
+        <path d="M31 49 c.5-6 3.5-10 8.5-12.5" fill="none" stroke="#a7f3d0" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <h1>惜食盲盒</h1>
+      <p>让每一份食物都被温柔对待</p>
+    </div>
+    <div class="role-seg">
+      <button class="seg-btn active" data-role="customer" onclick="setAuthRole('customer')">🧑 顾客</button>
+      <button class="seg-btn" data-role="merchant" onclick="setAuthRole('merchant')">🏪 商家</button>
+    </div>
+    <div class="auth-tabs">
+      <button id="authTabLogin" class="tab active" onclick="setAuthView('login')">登录</button>
+      <button id="authTabReg" class="tab" onclick="setAuthView('register')">注册</button>
+    </div>
+    <div id="authForm"></div>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<!-- 管理后台 M3 登录页 -->
+<div id="adminLogin" class="admin-login">
+  <div class="login-card">
+    <div class="login-logo">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L4 7v10l8 5 8-5V7l-8-5z" stroke="#fff" stroke-width="1.6" fill="rgba(255,255,255,.1)"/><path d="M7 10l5 3 5-3" stroke="#bbf7d0" stroke-width="1.6" fill="none"/><text x="12" y="17" text-anchor="middle" font-size="7" fill="#fff">M3</text></svg>
+      <h1>惜食盲盒 · 管理后台</h1>
+      <p>平台级运营管理中心（M3）</p>
+    </div>
+    <div id="adminLoginForm">
+      <div class="form-label">管理员账号</div>
+      <input id="adUser" class="form-input" placeholder="admin" value="admin">
+      <div class="form-label">管理员密码</div>
+      <input id="adPass" class="form-input" type="password" placeholder="admin123（演示）" value="admin123">
+      <div class="form-label">6 位登录验证码 <span style="color:#94a3b8;font-weight:400">（演示：123456）</span></div>
+      <div style="display:flex;gap:8px">
+        <input id="adCode" class="form-input" maxlength="6" inputmode="numeric" placeholder="123456" value="123456" style="margin-bottom:0">
+        <button class="btn" id="adSendCode" style="white-space:nowrap">发送验证码</button>
+      </div>
+      <button class="btn primary big" id="adLoginBtn" style="margin-top:18px">🔐 登录管理后台</button>
+      <div class="d-sub" style="text-align:center;margin-top:8px">演示账号：admin / admin123 / 验证码 123456</div>
+    </div>
+  </div>
+</div>
+
+<!-- 管理后台 M3 应用壳 -->
+<div id="adminApp" class="admin-app">
+  <aside class="admin-side">
+    <div class="as-head">
+      <div class="logo">🛠</div>
+      <div><h3>惜食管理中心</h3><p>运营 / 风控 / 结算</p></div>
+    </div>
+    <nav class="admin-nav" id="adminNav">
+      <a data-page="dashboard" onclick="switchAdminPage('dashboard')"><em>📊</em><span>平台数据看板</span></a>
+      <a data-page="merchants" onclick="switchAdminPage('merchants')"><em>🏢</em><span>商家入驻审核</span></a>
+      <a data-page="stores" onclick="switchAdminPage('stores')"><em>🏪</em><span>食品安全 & 店铺管理</span></a>
+      <a data-page="pricing" onclick="switchAdminPage('pricing')"><em>💰</em><span>定价监控 & 告警</span></a>
+      <a data-page="billing" onclick="switchAdminPage('billing')"><em>🧾</em><span>结算账单 & 导出</span></a>
+      <a data-page="syslog" onclick="switchAdminPage('syslog')"><em>⚙️</em><span>系统日志 & 参数配置</span></a>
+    </nav>
+    <div class="as-foot">
+      <span class="name" id="adminName">admin</span>
+      <button class="btn-logout" onclick="adminLogout()">退出</button>
+    </div>
+  </aside>
+  <section class="admin-main">
+    <div class="admin-top"><h2 id="adminTitle">平台数据看板</h2><div class="right" id="adminTopRight"></div></div>
+    <div class="admin-body" id="adminBody"></div>
+  </section>
+</div>
+
+<div id="modalMask" class="modal-mask hidden">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
